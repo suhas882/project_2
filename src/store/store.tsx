@@ -19,7 +19,8 @@ export function createDemoData(profile?: Partial<Profile>, consent: Consent = DE
     ...generatePersona(anchor),
     profile: { name: 'Maya', conditions: ['ra'], goals: ['Find food triggers', 'Better clinic visits'], mode: 'guest', createdAt: now, ...profile },
     consent,
-    consentLog: [{ version: 1, at: now, consent, change: 'Initial consent' }],
+    // no consent exists until the person finishes onboarding
+    consentLog: onboarded ? [{ version: 1, at: now, consent, change: 'Initial consent' }] : [],
     experiments: [],
     chat: [],
     shares: [],
@@ -32,7 +33,9 @@ function load(): AppData | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const d = JSON.parse(raw) as AppData;
-    return d.version === 1 ? d : null;
+    if (d.version !== 1) return null;
+    // consent saved before onboarding finished is not real consent: drop it so the screen and storage agree
+    return d.onboarded ? d : { ...d, consent: { ...DEFAULT_CONSENT }, consentLog: [] };
   } catch { return null; }
 }
 
@@ -58,6 +61,8 @@ function useStoreValue() {
       const d = createDemoData(profile, consent, true);
       return logAccess(d, profile.mode === 'account' ? 'Created demo account' : 'Started guest demo');
     }),
+    /** Called when onboarding opens: any consent left from an earlier, unfinished visit is cleared. */
+    clearPendingConsent: () => update(d => (d.onboarded ? d : { ...d, consent: { ...DEFAULT_CONSENT }, consentLog: [] })),
     setProfile: (p: Partial<Profile>) => update(d => logAccess({ ...d, profile: { ...d.profile, ...p } }, 'Updated profile')),
     setConsent: (c: Consent, change: string) => update(d => {
       const version = (d.consentLog[d.consentLog.length - 1]?.version ?? 0) + 1;

@@ -16,11 +16,15 @@ export default function Insights() {
   const main = insights.filter(i => i.label === 'Likely' || i.label === 'Possible');
   const notEnough = insights.filter(i => i.label === 'Not enough data');
   const unclear = insights.filter(i => i.label === 'No clear association');
-  const days = new Set(data.meals.map(m => m.date)).size;
+  const synthDays = new Set(data.meals.filter(m => m.method === 'synthetic').map(m => m.date));
+  const userDays = new Set(data.meals.filter(m => m.method !== 'synthetic' && !synthDays.has(m.date)).map(m => m.date)).size;
+  const daysLabel = synthDays.size
+    ? `From your ${synthDays.size}-day synthetic history${userDays ? ` plus ${userDays} day${userDays > 1 ? 's' : ''} you logged` : ''}`
+    : `From ${userDays} day${userDays === 1 ? '' : 's'} of your logs`;
 
   return (
     <div className="grid gap-5">
-      <PageHeader title="Your patterns" subtitle={`From ${days} days of your logs`} actions={<ButtonLink to="/insights/ask" variant="insight" size="sm" icon={<MessageCircle className="size-4" />}>Ask Remitra</ButtonLink>} />
+      <PageHeader title="Your patterns" subtitle={daysLabel} actions={<ButtonLink to="/insights/ask" variant="insight" size="sm" icon={<MessageCircle className="size-4" />}>Ask Remitra</ButtonLink>} />
       <Notice tone="sim" title="Demo analysis on synthetic data">
         Patterns are computed live from the stored logs using a simple Bayesian comparison with shrinkage. It is not adjusted for sleep, stress or medication changes yet; the planned engine is a hierarchical model that is. Associations are not causes and not medical findings.
       </Notice>

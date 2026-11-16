@@ -10,7 +10,9 @@ import { Logo } from '@/components/AppShell';
 const STEPS = ['Account', 'Conditions and goals', 'Privacy and consent', 'Health data'];
 
 export default function Onboarding() {
-  const { completeOnboarding } = useStore();
+  const { completeOnboarding, clearPendingConsent } = useStore();
+  // step 3 is the only source of consent until Finish; clear anything saved by an earlier, unfinished visit
+  useEffect(() => { clearPendingConsent(); }, [clearPendingConsent]);
   const nav = useNavigate();
   const toast = useToast();
   const [step, setStep] = useState(1);
@@ -28,7 +30,7 @@ export default function Onboarding() {
   const [passkey, setPasskey] = useState(false);
   const [conditions, setConditions] = useState<ConditionId[]>(['ra']);
   const [goals, setGoals] = useState<string[]>(['Find food triggers', 'Better clinic visits']);
-  const [consent, setConsent] = useState<Consent>(DEFAULT_CONSENT);
+  const [consent, setConsent] = useState<Consent>(() => ({ ...DEFAULT_CONSENT }));
 
   const next = () => {
     if (step === 1) {

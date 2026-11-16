@@ -12,7 +12,15 @@ export default function Ask() {
   const [typing, setTyping] = useState(false);
   const [err, setErr] = useState('');
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [data.chat.length, typing]);
+  const composer = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // keep the newest message fully above the sticky question box (and the phone tab bar)
+    const el = end.current, box = composer.current;
+    if (!el) return;
+    const bottomOffset = window.matchMedia('(min-width: 1024px)').matches ? 16 : 80;
+    el.style.scrollMarginBottom = `${(box?.offsetHeight ?? 160) + bottomOffset + 16}px`;
+    el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [data.chat.length, typing]);
 
   const send = (text: string) => {
     const t = text.trim();
@@ -70,8 +78,8 @@ export default function Ask() {
         <div ref={end} />
       </section>
 
-      <div className="sticky bottom-20 z-10 grid gap-2 rounded-3xl bg-canvas/95 pt-2 backdrop-blur lg:bottom-4">
-        <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Suggested questions">
+      <div ref={composer} className="sticky bottom-20 z-10 -mx-1 grid gap-2 rounded-3xl border border-line bg-canvas p-2 shadow-[0_-10px_24px_-12px_rgb(16_34_31/0.25)] lg:bottom-4">
+        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Suggested questions">
           {SUGGESTED_QUESTIONS.map(s => <button key={s} onClick={() => send(s)} disabled={typing} className="shrink-0 rounded-full border border-[#C7DED8] bg-white px-3 py-2 text-sm font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50">{s}</button>)}
         </div>
         <form className="flex gap-2" onSubmit={e => { e.preventDefault(); send(q); }}>

@@ -24,7 +24,8 @@ export default function Today() {
   const wear7 = week.map(d => data.wearables.find(w => w.date === d)).filter(Boolean) as typeof data.wearables;
   const r3 = data.rapid3[data.rapid3.length - 1];
   const plan = checkinPlan(data, today);
-  const recentPain = data.symptoms.filter(x => x.date >= addDays(today, -28) && x.date <= today).map(x => x.pain);
+  // last 28 calendar days including today (today's check-in counts once it exists)
+  const recentPain = data.symptoms.filter(x => x.date > addDays(today, -28) && x.date <= today).map(x => x.pain);
   const pain28 = recentPain.length ? recentPain.reduce((a, b) => a + b, 0) / recentPain.length : null;
   const mealsToday = data.meals.filter(m => m.date === today).sort((a, b) => a.time.localeCompare(b.time));
   const mealsShown = mealsToday.length ? mealsToday : data.meals.filter(m => m.date === yesterday).sort((a, b) => a.time.localeCompare(b.time));
@@ -89,7 +90,7 @@ export default function Today() {
       </section>
 
       <section aria-label="Today's overview" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label={checkinToday ? 'Joint pain today' : 'Joint pain yesterday'} value={lastSym ? `${lastSym.pain} / 10` : '—'} sub={pain28 != null ? `28-day average ${pain28.toFixed(1)}` : undefined} icon={<Activity className="size-5" aria-hidden />} tone="amber" />
+        <Stat label={checkinToday ? 'Joint pain today' : 'Joint pain yesterday'} value={lastSym ? `${lastSym.pain} / 10` : '—'} sub={pain28 != null ? `28-day average ${pain28.toFixed(1)}${checkinToday ? ', incl. today' : ''}` : undefined} icon={<Activity className="size-5" aria-hidden />} tone="amber" />
         {data.consent.health ? <>
           <Stat label="Last night's sleep" value={lastNight ? fmtMinutes(lastNight.sleepMin) : '—'} icon={<Moon className="size-5" aria-hidden />} tone="indigo" />
           <Stat label="Steps yesterday" value={lastNight ? lastNight.steps.toLocaleString() : '—'} icon={<Footprints className="size-5" aria-hidden />} tone="teal" />

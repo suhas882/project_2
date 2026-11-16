@@ -38,6 +38,9 @@ export default function MealLogger() {
   const [text, setText] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [unmatchedOpen, setUnmatchedOpen] = useState(false);
+  // what the person is typing in each grams box; only valid whole numbers 1-3000 reach the item
+  const [gramsText, setGramsText] = useState<Record<string, string>>({});
   const speech = useSpeech();
 
   useEffect(() => {
@@ -94,7 +97,7 @@ export default function MealLogger() {
     const list = parseFoods(t);
     if (!list.length) { setMsg('Type at least one food, for example "2 eggs and toast".'); return; }
     setStage('processing'); setBusyText('Looking up nutrients in USDA FoodData Central…'); setMsg('');
-    const found = await Promise.all(list.map(x => itemFromName(x.name, { count: x.count })));
+    const found = await Promise.all(list.map(x => itemFromName(x.name, { count: x.count, explicitCount: x.explicit })));
     setItems(found);
     if (found.some(i => !i.per100)) setMsg('Some foods were not found. Edit their names, search with Add item, or remove them.');
     else if (found.some(i => i.source === 'Offline estimate')) setMsg('USDA lookup is unavailable right now, so some nutrients are offline estimates.');
@@ -109,9 +112,19 @@ export default function MealLogger() {
     const n = { ...x, ...patch };
     return { ...n, tags: tagsForName(n.name, n.per100, n.grams, { nova: n.nova }) };
   }));
-  const save = () => {
+  const gramsError = (it: FoodItem) => {
+    const t = gramsText[it.id];
+    if (t == null) return '';
+    return /^\d+$/.test(t.trim()) && Number(t) >= 1 && Number(t) <= 3000 ? '' : 'Enter a whole number of grams from 1 to 3000.';
+  };
+  const invalid = items.some(i => !i.name.trim() || !!gramsError(i));
+  const unmatched = items.filter(i => !i.per100);
+  const setGrams = (i: number, it: FoodItem, g: number) => { setGramsText(t => { const n = { ...t }; delete n[it.id]; return n; }); setItem(i, { grams: g }); };
+  const save = (acceptUnmatched = false) => {
     if (!items.length) return;
-    if (items.some(i => !i.name.trim() || !(i.grams > 0))) { setMsg('Every item needs a name and an amount above 0 g.'); return; }
+    if (invalid) { setMsg('Fix the highlighted items first: every item needs a name and 1 to 3000 grams.'); return; }
+    if (unmatched.length && !acceptUnmatched) { setUnmatchedOpen(true); return; }
+    setUnmatchedOpen(false);
     const meal: Omit<Meal, 'id'> = { date, time, slot, items, method: (editing?.method ?? (mode === 'edit' ? 'text' : mode)) as MealMethod };
     if (editing) { updateMeal({ ...meal, id: editing.id }); toast('Meal updated.'); }
     else { addMeal(meal); toast(mode === 'photo' ? 'Meal saved. The photo was discarded.' : 'Meal saved.'); }
@@ -183,8 +196,8 @@ export default function MealLogger() {
                 {items.map((it, i) => (
                   <li key={it.id} className="grid gap-2 py-3 sm:grid-cols-[1fr_auto] sm:items-center">
                     <div className="min-w-0">
-                      <label className="sr-only" htmlFor={`nm-${it.id}`}>Food name</label>
-                      <input id={`nm-${it.id}`} value={it.name} onChange={e => setItem(i, { name: e.target.value })} className="w-full rounded-lg border border-transparent px-1 py-0.5 font-semibold hover:border-line focus:border-line" />
+                      <label className="sr-only" htmlFor={`nm-${it.id}`}>Food name, item {i + 1}</label>
+                      <input id={`nm-${it.id}`} aria-label={`Food name, item ${i + 1}`} aria-invalid={!it.name.trim() || undefined} value={it.name} onChange={e => setItem(i, { name: e.target.value })} className="w-full rounded-lg border border-transparent px-1 py-0.5 font-semibold hover:border-line focus:border-line" />
                       <p className="px-1 text-sm text-ink-3">
                         {it.per100 ? `${Math.round((it.per100.kcal * it.grams) / 100)} kcal` : <span className="font-semibold text-warn">No nutrient match</span>}
                         {it.confidence != null && <> · <span className={it.confidence < 50 ? 'font-semibold text-warn' : ''}>{it.confidence}% match</span></>}
@@ -192,13 +205,17 @@ export default function MealLogger() {
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <button className="grid size-10 place-items-center rounded-xl bg-brand-50 text-brand-700" onClick={() => setItem(i, { grams: Math.max(5, it.grams - (it.grams > 60 ? 25 : 10)) })} aria-label={`Less ${it.name}`}><Minus className="size-4" /></button>
-                      <label className="sr-only" htmlFor={`g-${it.id}`}>Grams of {it.name}</label>
-                      <input id={`g-${it.id}`} type="number" min={1} max={3000} value={it.grams} onChange={e => setItem(i, { grams: Math.max(0, Math.min(3000, Number(e.target.value) || 0)) })} className="tabular h-10 w-20 rounded-xl border border-line px-2 text-center font-semibold" />
+                      <button className="grid size-10 place-items-center rounded-xl bg-brand-50 text-brand-700" onClick={() => setGrams(i, it, Math.max(5, it.grams - (it.grams > 60 ? 25 : 10)))} aria-label={`Less ${it.name}`}><Minus className="size-4" /></button>
+                      <label className="sr-only" htmlFor={`g-${it.id}`}>Grams of {it.name || `item ${i + 1}`}</label>
+                      <input id={`g-${it.id}`} aria-label={`Grams of ${it.name || `item ${i + 1}`}`} type="number" inputMode="numeric" min={1} max={3000} step={1}
+                        value={gramsText[it.id] ?? String(it.grams)} aria-invalid={!!gramsError(it) || undefined} aria-describedby={gramsError(it) ? `ge-${it.id}` : undefined}
+                        onChange={e => { const t = e.target.value; setGramsText(m => ({ ...m, [it.id]: t })); if (/^\d+$/.test(t.trim()) && Number(t) >= 1 && Number(t) <= 3000) setItem(i, { grams: Number(t) }); }}
+                        className="tabular h-10 w-20 rounded-xl border border-line px-2 text-center font-semibold aria-[invalid=true]:border-danger" />
                       <span className="text-sm text-ink-3">g</span>
-                      <button className="grid size-10 place-items-center rounded-xl bg-brand-50 text-brand-700" onClick={() => setItem(i, { grams: it.grams + (it.grams >= 60 ? 25 : 10) })} aria-label={`More ${it.name}`}><Plus className="size-4" /></button>
+                      <button className="grid size-10 place-items-center rounded-xl bg-brand-50 text-brand-700" onClick={() => setGrams(i, it, Math.min(3000, it.grams + (it.grams >= 60 ? 25 : 10)))} aria-label={`More ${it.name}`}><Plus className="size-4" /></button>
                       <button className="grid size-10 place-items-center rounded-xl text-ink-3 hover:bg-danger-50 hover:text-danger" onClick={() => setItems(xs => xs.filter((_, j) => j !== i))} aria-label={`Remove ${it.name}`}><X className="size-4" /></button>
                     </div>
+                    {gramsError(it) && <p id={`ge-${it.id}`} className="text-sm font-semibold text-danger sm:col-span-2" role="alert">{gramsError(it)}</p>}
                   </li>
                 ))}
               </ul>
@@ -214,13 +231,20 @@ export default function MealLogger() {
           <div className="flex flex-wrap gap-3">
             {editing && <Button variant="danger" icon={<Trash2 className="size-5" />} onClick={() => setConfirmDelete(true)}>Delete</Button>}
             {!editing && mode !== 'repeat' && <Button variant="secondary" onClick={() => { setStage('capture'); setPhoto(null); setItems([]); setMsg(''); setDets([]); }}>Start over</Button>}
-            <Button className="flex-1" size="lg" icon={<Check className="size-5" />} disabled={!items.length} onClick={save}>{editing ? 'Save changes' : 'Confirm meal'}</Button>
+            <Button className="flex-1" size="lg" icon={<Check className="size-5" />} disabled={!items.length || invalid} onClick={() => save()}>{editing ? 'Save changes' : 'Confirm meal'}</Button>
           </div>
           <p className="flex items-start gap-2 text-sm text-ink-3"><Info className="mt-0.5 size-4 shrink-0" aria-hidden />Nothing is saved until you confirm.{mode === 'photo' && ' Recognition uses MobileNet, a general open-source image model that knows a limited set of foods and names one main item. The production app plans a vision-language model that lists every item and portion.'}</p>
         </>
       )}
 
       <FoodSearch open={searchOpen} onClose={() => setSearchOpen(false)} onAdd={it => { setItems(xs => [...xs, it]); setSearchOpen(false); if (msg && !items.length) setMsg(''); }} />
+      <Modal open={unmatchedOpen} onClose={() => setUnmatchedOpen(false)} title="Save foods without nutrients?"
+        footer={<><Button variant="secondary" onClick={() => setUnmatchedOpen(false)}>Go back and fix</Button><Button onClick={() => save(true)}>Save anyway</Button></>}>
+        <div className="grid gap-2 text-ink-2">
+          <p>{unmatched.map(u => `"${u.name}"`).join(', ')} {unmatched.length === 1 ? 'has' : 'have'} no nutrient match. {unmatched.length === 1 ? 'It' : 'They'} will be saved with 0 kcal and left out of calorie, sugar and fiber totals and food-pattern insights.</p>
+          <p>To fix it, edit the name or remove the item and use Add item to search USDA FoodData Central.</p>
+        </div>
+      </Modal>
       <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete this meal?"
         footer={<><Button variant="secondary" onClick={() => setConfirmDelete(false)}>Cancel</Button><Button variant="danger" onClick={() => { if (editing) { deleteMeal(editing.id); toast('Meal deleted.'); nav('/log'); } }}>Delete meal</Button></>}>
         <p className="text-ink-2">This removes the meal from your log, insights and reports. This demo cannot undo it.</p>

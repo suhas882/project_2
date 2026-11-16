@@ -27,7 +27,7 @@ test('Harvey-Bradshaw partial score (patient items only)', () => {
 
 test('food text parser handles counts, units and joiners', () => {
   assert.deepEqual(parseFoods('2 eggs, a slice of toast with butter and a cup of coffee'), [
-    { name: 'eggs', count: 2 }, { name: 'toast', count: 1 }, { name: 'butter', count: 1 }, { name: 'coffee', count: 1 },
+    { name: 'eggs', count: 2, explicit: true }, { name: 'toast', count: 1, explicit: true }, { name: 'butter', count: 1, explicit: false }, { name: 'coffee', count: 1, explicit: true },
   ]);
   assert.deepEqual(parseFoods(''), []);
 });

@@ -88,7 +88,7 @@ export default function Settings() {
             </div>
           ))}
           <p className="text-sm text-ink-2">What changes: wearable off hides sleep and heart-rate data everywhere; AI photos off blocks photo meal logging and lab-photo reading; research has no effect in Phase 1 beyond the recorded choice.</p>
-          <details className="text-sm"><summary className="cursor-pointer font-semibold text-brand-700">Consent history ({data.consentLog.length} versions)</summary>
+          <details className="text-sm"><summary className="cursor-pointer font-semibold text-brand-700">Consent history ({data.consentLog.length} {data.consentLog.length === 1 ? 'version' : 'versions'})</summary>
             <ul className="mt-2 grid gap-1">{[...data.consentLog].reverse().map(c => <li key={c.version} className="rounded-xl bg-canvas px-3 py-2"><b>v{c.version}</b> · {new Date(c.at).toLocaleString()} · {c.change}</li>)}</ul>
           </details>
           <Link to="/privacy" className="font-semibold text-brand-700 underline">Read the privacy notice</Link>
@@ -115,7 +115,7 @@ export default function Settings() {
 
       <Section id="access-log" icon={<History className="size-5 text-brand" aria-hidden />} title="Access log">
         <ul className="max-h-72 divide-y divide-line overflow-auto text-sm">
-          {data.access.slice(0, 50).map((a, i) => <li key={i} className="flex gap-3 py-2"><span className="w-40 shrink-0 text-ink-3">{new Date(a.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span><span className="flex-1">{a.action}</span><span className="text-ink-3">{a.who}</span></li>)}
+          {[...data.access].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 50).map((a, i) => <li key={i} className="flex gap-3 py-2"><span className="w-40 shrink-0 text-ink-3">{new Date(a.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span><span className="flex-1">{a.action}</span><span className="text-ink-3">{a.who}</span></li>)}
         </ul>
       </Section>
 

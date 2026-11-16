@@ -75,6 +75,14 @@ const PORTIONS: [RegExp, number][] = [[/coffee|tea|milk|juice|latte|smoothie/, 2
   [/cereal|granola/, 40], [/cheese/, 28], [/nut|almond|walnut|cashew/, 28], [/cookie|biscuit/, 30], [/cake|muffin|donut/, 80], [/pizza/, 107],
   [/burger/, 200], [/fries|chips/, 117], [/potato/, 170], [/avocado/, 150], [/berr/, 150], [/oil|butter/, 14]];
 export const defaultGrams = (name: string) => (PORTIONS.find(([re]) => re.test(name.toLowerCase())) ?? [0, 100])[1];
+/* Weight of ONE countable piece, used when a number is said or typed ("2 eggs" = 2 x 50 g). */
+const UNIT_GRAMS: [RegExp, number][] = [[/\beggs?\b(?!plant)/, 50], [/apples?/, 182], [/bananas?/, 118], [/oranges?/, 140], [/toast|bread|slices?/, 30],
+  [/cookies?|biscuits?/, 30], [/muffins?|donuts?|doughnuts?/, 80], [/sandwich(es)?|wraps?/, 150], [/burgers?/, 200], [/tortillas?/, 45],
+  [/pizza/, 107], [/coffees?|teas?|lattes?|juices?/, 240], [/sodas?|colas?|beers?/, 355], [/yogh?urts?/, 170], [/avocados?/, 150], [/potato(es)?/, 170]];
+export function portionGrams(name: string, count = 1, explicitCount = false): number {
+  const unit = UNIT_GRAMS.find(([re]) => re.test(name.toLowerCase()))?.[1];
+  return Math.round((explicitCount && unit ? unit : defaultGrams(name)) * count);
+}
 
 const OFFLINE: Record<string, [number, number, number, number]> = {
   banana: [89, 1.1, 2.6, 12], apple: [52, .3, 2.4, 10], orange: [47, .9, 2.4, 9], berr: [57, .7, 2.4, 10], rice: [130, 2.7, .4, 0], pasta: [158, 5.8, 1.8, .6],
@@ -91,10 +99,10 @@ export const newItemId = () => `i${Date.now().toString(36)}${(++idSeq).toString(
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /* Build a FoodItem from a name: USDA if reachable, otherwise an offline estimate, otherwise no nutrients. */
-export async function itemFromName(name: string, opts: { query?: string; grams?: number; count?: number; confidence?: number } = {}): Promise<FoodItem> {
+export async function itemFromName(name: string, opts: { query?: string; grams?: number; count?: number; explicitCount?: boolean; confidence?: number } = {}): Promise<FoodItem> {
   const raw = (opts.query || name).toLowerCase().trim();
   const q = (SYNONYMS.find(([re]) => re.test(raw)) ?? [0, raw])[1];
-  const grams = Math.round((opts.grams ?? defaultGrams(name)) * (opts.count ?? 1));
+  const grams = opts.grams != null ? Math.round(opts.grams * (opts.count ?? 1)) : portionGrams(name, opts.count ?? 1, opts.explicitCount);
   let per100: Nutrients | null = null;
   let source: FoodItem['source'] = 'Not found';
   let fdcId: number | undefined, match: string | undefined;

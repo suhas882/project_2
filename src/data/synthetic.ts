@@ -131,8 +131,9 @@ export function generatePersona(anchor: string, seed = 20261215): Omit<AppData, 
       { id: 'med-3', name: 'Vitamin D3 2000 IU', kind: 'supplement', schedule: 'Daily' },
     ],
     access: [
-      { at: `${d(63)}T10:05:00`, who: 'You', action: 'Saved lab results' },
+      // newest first, like entries added later
       { at: `${d(69)}T18:40:00`, who: 'You', action: 'Logged dinner' },
+      { at: `${d(63)}T10:05:00`, who: 'You', action: 'Saved lab results' },
     ],
   };
 }

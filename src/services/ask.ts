@@ -4,7 +4,8 @@
    language model. Guardrails: no diagnosis, no medication or dosing advice, red-flag escalation.
    Production plan: retrieval over the user's records plus an advisor-approved library on Bedrock. */
 import type { AppData, ChatMessage, Source } from '@/types';
-import { addDays, fmtDate } from '@/lib/dates';
+import { addDays, fmtDate, fmtTime } from '@/lib/dates';
+import { mealTotals } from '@/data/foods';
 import { SYMPTOMS } from '@/lib/scoring';
 import { computeInsights, dailyExposures, flareOutlook, EXPOSURES } from './analytics';
 
@@ -24,6 +25,7 @@ export const SUGGESTED_QUESTIONS = [
   'Show my symptom trends.',
   'What happened after I logged dairy products?',
   'Summarize my recent health tracking.',
+  'What did I eat today?',
   'Should I stop my methotrexate?',
 ];
 
@@ -42,6 +44,19 @@ export function answerQuestion(q: string, data: AppData, today: string): Reply {
   }
   if (/\b(do i have|diagnos|what disease|is (it|this) (lupus|crohn|ms|cancer|arthritis))\b/.test(s)) {
     return { kind: 'refusal', text: "I can't diagnose conditions. Your clinician can review your symptoms and tests. I can summarize your logs so the visit goes further.", sources: [], links: [{ label: 'Prepare a care team report', to: '/care' }] };
+  }
+
+  if (/\b(what (did|have) i (eat|eaten|had)|what i (ate|had)|did i eat|my meals|meals? (today|yesterday)|eaten (today|yesterday)|ate (today|yesterday))\b/.test(s)) {
+    const day = /yesterday/.test(s) ? addDays(today, -1) : today;
+    const label = day === today ? 'today' : 'yesterday';
+    const list = (d: string) => data.meals.filter(m => m.date === d).sort((a, b) => a.time.localeCompare(b.time));
+    let meals = list(day);
+    let note = '';
+    if (!meals.length && day === today) { meals = list(addDays(today, -1)); note = meals.length ? 'You have not logged anything today yet. Yesterday you had: ' : ''; }
+    if (!meals.length) return { kind: 'answer', text: `You have no meals logged ${label}. Use Log a meal to add one.`, sources: [D('Meal logs')], links: [{ label: 'Log a meal', to: '/log' }] };
+    const kcal = meals.reduce((t, m) => t + mealTotals(m.items).kcal, 0);
+    const lines = meals.map(m => `${m.slot} at ${fmtTime(m.time)}: ${m.items.map(i => i.name.split(',')[0]).join(', ')}`);
+    return { kind: 'answer', text: `${note || `${label === 'today' ? 'Today' : 'Yesterday'} you logged: `}${lines.join('; ')}. About ${Math.round(kcal / 10) * 10} kcal in total (estimate).`, sources: [D('Meal logs')], links: [{ label: 'Open meal history', to: '/log' }] };
   }
 
   const sym = new Map(data.symptoms.map(x => [x.date, x]));
