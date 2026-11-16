@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Remitra Prototype</title>
+  <meta name="description" content="Clickable web prototype of Remitra, the diet and autoimmune tracking app. Synthetic demo data only.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="stage">
+    <aside class="side left" aria-label="Prototype guide">
+      <h1>Remitra</h1>
+      <p class="tag">Your friend on the way to remission.</p>
+      <p>Clickable web prototype of the Phase 1 mobile app. Every screen works; all data is synthetic (persona: Maya, rheumatoid arthritis, 70 days).</p>
+      <h2>Jump to a screen</h2>
+      <ul class="jump" id="jump"></ul>
+      <p style="margin-top:16px"><button class="small-btn" id="reset">Reset demo data</button></p>
+    </aside>
+
+    <div class="phone">
+      <div class="screen" id="screen" aria-live="polite"></div>
+    </div>
+
+    <aside class="side right" aria-label="Screen notes">
+      <h2>On this screen</h2>
+      <div class="notes" id="notes"></div>
+      <h2>Prototype scope</h2>
+      <div class="notes">
+        <ul>
+          <li>Meal logging is live: camera or upload with an on-device food model, browser voice input, barcode scan, and nutrient lookup from USDA FoodData Central and Open Food Facts.</li>
+          <li>Lab photo reading and Ask Remitra are still simulated with fixed demo responses.</li>
+          <li>Insights and flare outlook show synthetic results; target outcomes to be validated during discovery.</li>
+          <li>Meal photos stay in the browser. Food names and barcodes are sent to USDA and Open Food Facts for lookup; voice goes to the browser's speech service. Don't enter real health data.</li>
+          <li>Working name only; not affiliated with or endorsed by any federal agency.</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
